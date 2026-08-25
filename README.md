@@ -118,6 +118,43 @@ The defaults are the lightweight variant used as a baseline in OmniSpectrum;
 spender's published encoder is `filters=(128, 256, 512)`, `sizes=(5, 11, 21)`,
 `n_hidden=(128, 64, 32)`.
 
+### SpecFormer
+
+The spectrum tower of AstroCLIP
+([Parker et al. 2024, MNRAS 531:4990](https://doi.org/10.1093/mnras/stae1450)).
+Flux patches enter through a linear embedding, a learned embedding of the patch
+index supplies position, and pre-norm transformer blocks produce one token per
+patch. A linear head reconstructs each patch from its token — the masked
+modelling objective it is pretrained with — while the tokens themselves are the
+representation used downstream, via `forward_features`.
+
+Consumes `flux` only, already patched. Position is the patch index, not
+`wavelength`, so a dataset must be patched on a consistent grid for the
+position embedding to mean the same thing across it.
+
+| Argument | Default | Meaning |
+|---|---|---|
+| `input_dim` | `22` | width of one patch; AstroCLIP uses a 20-pixel patch plus its mean and standard deviation |
+| `embed_dim` | `768` | model width |
+| `num_layers` | `6` | transformer blocks |
+| `num_heads` | `6` | attention heads per block |
+| `max_len` | `800` | longest patch sequence, sizing the position embedding |
+| `dropout` | `0.1` | dropout in the embeddings and blocks |
+
+```python
+import astrospec
+from astrospec.data import Patchify
+
+model = astrospec.create_model("specformer")
+patches, valid = Patchify(patch_size=22)(flux)
+
+tokens = model.forward_features(patches, valid=valid)  # (B, T, embed_dim)
+recon = model(patches, valid=valid)                    # (B, T, input_dim)
+```
+
+Passing `valid` excludes padded patches from attention, so they cannot
+influence the tokens of real patches.
+
 ## Pretrained weights
 
 `astrospec.pretrained` loads released checkpoints into the matching model,
@@ -160,5 +197,16 @@ If you find this library useful in your research, please consider citing it
   author    = {Melchior, Peter and Liang, Yan and Hahn, ChangHoon and Goulding, Andy},
   year      = {2023},
   doi       = {10.3847/1538-3881/ace0ff}
+}
+
+@article{parker2024astroclip,
+  title     = {AstroCLIP: a cross-modal foundation model for galaxies},
+  volume    = {531},
+  number    = {4},
+  pages     = {4990--5011},
+  journal   = {Monthly Notices of the Royal Astronomical Society},
+  author    = {Parker, Liam and Lanusse, Francois and Golkar, Siavash and Sarra, Leopoldo and Cranmer, Miles and Bietti, Alberto and Eickenberg, Michael and Krawezik, Geraud and McCabe, Michael and Morel, Rudy and others},
+  year      = {2024},
+  doi       = {10.1093/mnras/stae1450}
 }
 ```
