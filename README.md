@@ -6,6 +6,13 @@ stellar property estimation, and self-supervised representation learning on
 native instrument grids. Each is a self-contained implementation, with
 pretrained weights where available.
 
+<img src="assets/header.jpg" alt="Multiwavelength view of the Whirlpool Galaxy across the electromagnetic spectrum" width="500">
+
+*The spiral galaxy M51 in Canes Venatici as imaged in several regions of the
+electromagnetic spectrum. The processes that produce the various forms of EM
+radiation are described under each image. Courtesy: NASA/University of
+Chicago.*
+
 ## Table of contents
 
 - [Usage](#usage)
@@ -49,49 +56,16 @@ patches, valid = Patchify(patch_size=20)(flux)
 ## Models
 
 Each model is a plain `nn.Module` in `astrospec/models/`, one paper per module.
-Each class docstring documents its constructor arguments and shapes.
+Architecture, shapes, and consumed inputs are documented in each module's
+docstring.
 
-### GalSpecNet
-
-A 1-D convolutional classifier for optical spectra
-([Wu et al. 2023, MNRAS 527:1163](https://doi.org/10.1093/mnras/stad2913)).
-Stacked convolutions with interleaved max-pooling compress the flux sequence,
-and a flat MLP maps the final activations to class logits. The head fixes the
-grid, so resample spectra to a common length first. Consumes `flux`.
-
-### SpectrumEncoder (spender)
-
-The spectrum encoder of spender
-([Melchior et al. 2023, AJ 166:74](https://doi.org/10.3847/1538-3881/ace0ff)),
-after [Serra et al. 2018](https://arxiv.org/abs/1805.03908). A convolutional
-stack splits its final channels into attention values and keys; the keys are
-softmaxed over the pixel axis and pool the values into a single vector, which
-an MLP compresses to a latent. That pooling makes the encoder
-length-agnostic: spectra on different grids yield the same latent shape.
-Consumes `flux`.
-
-### SpecFormer
-
-The spectrum tower of AstroCLIP
-([Parker et al. 2024, MNRAS 531:4990](https://doi.org/10.1093/mnras/stae1450)).
-Flux patches enter through a linear embedding, a learned embedding of the patch
-index supplies position, and pre-norm transformer blocks produce one token per
-patch. Pretraining reconstructs masked patches; `forward_features` returns the
-tokens used downstream. Position is the patch index rather than `wavelength`,
-so patch the dataset on a consistent grid. Consumes `flux`, patched.
-
-### AstroPT
-
-A GPT-style causal transformer over spectral patches
-([Smith et al. 2024, arXiv:2405.14930](https://arxiv.org/abs/2405.14930),
-[Smith42/astroPT](https://github.com/Smith42/astroPT)). Two tokenizers embed
-the patches and the wavelengths of the same pixels, and the model sums the two,
-so position is continuous and physical rather than a rank-indexed lookup, and
-spectra on different grids stay comparable. Causal blocks let each patch attend
-only to its predecessors; pretraining predicts the next patch. The multimodal
-chaining of spectra onto this backbone is the
-[Euclid Q1 follow-up](https://arxiv.org/abs/2503.15312). Consumes `flux` and
-`wavelength`, both patched.
+| Model | Paper | Consumes | Task | Dataset |
+|---|---|---|---|---|
+| GalSpecNet | [Wu et al. 2023, MNRAS 527:1163](https://doi.org/10.1093/mnras/stad2913) | `flux` | GALAXY / QSO / STAR classification | SDSS |
+| SpectrumEncoder (spender) | [Melchior et al. 2023, AJ 166:74](https://doi.org/10.3847/1538-3881/ace0ff) | `flux` | Autoencoding (reconstruction) | SDSS |
+| SpecFormer | [Parker et al. 2024, MNRAS 531:4990](https://doi.org/10.1093/mnras/stae1450) | `flux`, patched | Masked patch reconstruction; cross-modal (image-spectrum) contrastive pretraining | DESI + DESI Legacy Imaging |
+| AstroPT | [Smith et al. 2024, arXiv:2405.14930](https://arxiv.org/abs/2405.14930) | `flux`, `wavelength`, patched | Next-patch prediction (autoregressive pretraining) | DESI Legacy Imaging (spectra: Euclid Q1 follow-up) |
+| GaSNet-III | [Zhong et al. 2025, MNRAS 543:691](https://doi.org/10.1093/mnras/staf1482) | `flux` | Spectrum reconstruction; downstream redshift estimation and anomaly detection | SDSS + DESI |
 
 ## Pretrained weights
 
@@ -162,5 +136,16 @@ behind the models you use.
   eprint        = {2405.14930},
   archivePrefix = {arXiv},
   primaryClass  = {astro-ph.IM}
+}
+
+@article{zhong2025galaxy,
+  title     = {Galaxy Spectra Networks (GaSNet) -- III. Reconstructive pre-trained network for spectrum reconstruction, redshift estimate, and anomaly detection},
+  volume    = {543},
+  number    = {1},
+  pages     = {691--708},
+  journal   = {Monthly Notices of the Royal Astronomical Society},
+  author    = {Zhong, Fucheng and Napolitano, Nicola R and Heneka, Caroline and Krogager, Jens-Kristian and Demarco, Ricardo and Bouch{\'e}, Nicolas F and Loveday, Jonathan and Fritz, Alexander and Verdier, Aur{\'e}lien and Roukema, Boudewijn F and others},
+  year      = {2025},
+  doi       = {10.1093/mnras/staf1482}
 }
 ```

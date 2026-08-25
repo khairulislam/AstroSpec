@@ -33,10 +33,16 @@ matrix. The shortest end-to-end path through the library: load, resample,
 
 ## `specformer_pretraining.ipynb`
 
-Pretrains `SpecFormer` on 16,000 unlabelled spectra by reconstructing masked
-patches, which is AstroCLIP's spectrum-tower objective. It then mean-pools
+Pretrains `SpecFormer` at its published size, 6 layers of width 768, on 16,000
+unlabelled spectra by reconstructing masked patches, which is AstroCLIP's
+spectrum-tower objective. It then mean-pools
 `forward_features` into one vector per spectrum and searches those for cosine
 nearest neighbours. Redshift, which the model never sees, only serves as a check
 that retrieved neighbours are physically similar. Uses `astrospec.data.Patchify`
 and the 22-number patch encoding (patch standardized by its own mean and
 standard deviation, with both appended) that SpecFormer expects.
+
+45 epochs, about half an hour on an A100. Two settings are load-bearing at this
+width. Without a warmup plus cosine learning-rate schedule the loss turns back
+up around epoch 10 and the encoder collapses, and without centering the pooled
+embeddings before the cosine every pair scores above 0.999.
