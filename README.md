@@ -74,17 +74,21 @@ with the optional `huggingface_hub` dependency (`pip install astrospec[pretraine
 
 | Model | Source | Params | Modality |
 |---|---|---|---|
+| SpecFormer | [`polymathic-ai/astroclip`](https://huggingface.co/polymathic-ai/astroclip) (AstroCLIP spectrum tower) | 43M | `flux`, patched |
+| AstroCLIP (full, via the `astroclip` package) | [`polymathic-ai/astroclip`](https://huggingface.co/polymathic-ai/astroclip) | 370M | `flux` (spectrum branch) + image |
 
 ## Examples
 
 Plain PyTorch notebooks in [`examples/`](examples/), added alongside the models
-they use. Both read SDSS spectra from a local MultimodalUniverse HDF5 tree or,
-failing that, stream them from the Hub.
+they use. Each reads its survey's spectra from a local MultimodalUniverse HDF5
+tree or, failing that, streams them from the Hub.
 
 | Notebook | What it does |
 |---|---|
 | [`sdss_classification.ipynb`](examples/sdss_classification.ipynb) | Trains GalSpecNet to separate GALAXY / QSO / STAR |
 | [`specformer_pretraining.ipynb`](examples/specformer_pretraining.ipynb) | Pretrains SpecFormer on masked patches, then retrieves nearest neighbours in its embedding space |
+| [`specformer_pretrained_similarity_search.ipynb`](examples/specformer_pretrained_similarity_search.ipynb) | Loads SpecFormer's released weights (from AstroCLIP's checkpoint) and retrieves nearest neighbours, no training |
+| [`astroclip_similarity_search.ipynb`](examples/astroclip_similarity_search.ipynb) | Loads the full released AstroCLIP model and retrieves nearest neighbours by its aligned spectrum embedding |
 
 ## Resources
 
