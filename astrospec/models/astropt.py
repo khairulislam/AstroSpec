@@ -35,8 +35,8 @@ class AimTokenizer(nn.Module):
 class AstroPT(nn.Module):
     """Causal decoder-only transformer, pretrained by next-patch prediction.
 
-    Patches are embedded with an :class:`AimTokenizer` and summed with a second
-    tokenizer applied to the wavelengths of the same patch, so position is
+    An :class:`AimTokenizer` embeds the patches, a second one embeds the
+    wavelengths of the same patch, and the model sums the two, so position is
     continuous and physical rather than a rank-indexed lookup. Causal blocks
     then let each patch see only its predecessors, and the head predicts the
     following patch from each hidden state.

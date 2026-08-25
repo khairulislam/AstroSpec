@@ -10,13 +10,13 @@ class Patchify(nn.Module):
     """Cut a 1-D spectrum into patches of ``patch_size`` pixels.
 
     Optional overlap shortens the stride, so neighbouring patches share pixels.
-    When ``pad`` is set the sequence is right-padded to a whole number of
+    With ``pad`` set, the module right-pads the sequence to a whole number of
     patches and the returned ``valid`` flag marks the padded tail patch, which
-    a model should mask out; otherwise the trailing pixels are dropped.
+    a model should mask out. Without it, the trailing pixels are dropped.
 
-    Apply it to any per-pixel quantity on the same grid — ``flux``,
-    ``wavelength``, ``ivar``, ``mask``, ``lsf_sigma`` — with the same settings,
-    so the patches stay aligned. Boolean inputs are cast to float.
+    Apply it with the same settings to any per-pixel quantity on the same grid,
+    such as ``flux``, ``wavelength``, ``ivar``, ``mask``, or ``lsf_sigma``, and
+    the patches stay aligned. Boolean inputs are cast to float.
 
     Args:
         patch_size: pixels per patch.

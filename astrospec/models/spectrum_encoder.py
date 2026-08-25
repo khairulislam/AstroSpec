@@ -19,9 +19,9 @@ class SpectrumEncoder(nn.Module):
     """Convolutional encoder with a softmax attention pooling and an MLP.
 
     The final convolution splits its channels in half into attention values and
-    keys; the keys are softmaxed over the pixel axis and used to pool the values
-    into one vector per spectrum, which an MLP compresses to ``n_latent``.
-    Attention pooling is what makes the encoder length-agnostic: spectra of
+    keys. A softmax over the pixel axis turns the keys into weights, which pool
+    the values into one vector per spectrum, and an MLP compresses that vector
+    to ``n_latent``. The pooling makes the encoder length-agnostic: spectra of
     different lengths give the same latent shape.
 
     Consumes ``flux`` only; ``wavelength``, ``ivar``, ``mask``, and
@@ -30,15 +30,15 @@ class SpectrumEncoder(nn.Module):
     Args:
         n_latent: latent dimension.
         filters: output channels of each convolution. The last must be even,
-            since it is split into values and keys.
+            since the encoder splits it into values and keys.
         sizes: kernel width of each convolution; also the pooling width between
             them. Must match ``filters`` in length.
         n_hidden: hidden widths of the MLP.
         act: MLP activations; defaults to ``PReLU`` per hidden layer.
         dropout: dropout rate in the convolutions and the MLP.
 
-    The defaults are the lightweight variant used as a baseline in
-    OmniSpectrum. spender's published encoder is ``filters=(128, 256, 512)``,
+    The defaults are the lightweight variant OmniSpectrum uses as a baseline.
+    spender's published encoder is ``filters=(128, 256, 512)``,
     ``sizes=(5, 11, 21)``, ``n_hidden=(128, 64, 32)``.
 
     Shape:

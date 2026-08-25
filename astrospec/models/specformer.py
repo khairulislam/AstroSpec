@@ -25,9 +25,9 @@ class SpecFormer(nn.Module):
     tokens themselves are the representation used downstream.
 
     Consumes ``flux`` only, already patched (see :class:`astrospec.data.Patchify`).
-    Position comes from the patch index, not from ``wavelength``, so spectra must
-    be patched on a consistent grid for the position embedding to mean the same
-    thing across a dataset.
+    Position comes from the patch index, not from ``wavelength``, so patch every
+    spectrum in a dataset on the same grid, or the position embedding means a
+    different thing from one spectrum to the next.
 
     Args:
         input_dim: width of one patch. AstroCLIP uses 22: a 20-pixel patch plus
@@ -91,8 +91,8 @@ class SpecFormer(nn.Module):
         Args:
             patches: ``(B, T, input_dim)``.
             valid: optional ``(B, T)`` boolean, ``False`` on padded patches, as
-                returned by :class:`astrospec.data.Patchify`. Padded patches are
-                excluded from attention so they cannot influence real tokens.
+                returned by :class:`astrospec.data.Patchify`. Attention skips
+                padded patches so they cannot influence real tokens.
         """
         t = patches.shape[1]
         if t > self.max_len:

@@ -1,12 +1,12 @@
-# AstroSpec - Unified Spectral Library for Astronomy
+# AstroSpec
 
-A unified library of spectroscopic models for astronomy: spectral
-classification, redshift estimation, stellar property estimation, and
-self-supervised representation learning on native instrument grids, each a
-self-contained implementation behind one registry and a common PyTorch
-interface, with pretrained weights where available.
+Spectroscopic models for astronomy under one registry and a common PyTorch
+interface. The models cover spectral classification, redshift estimation,
+stellar property estimation, and self-supervised representation learning on
+native instrument grids. Each is a self-contained implementation, with
+pretrained weights where available.
 
-## Table of Contents
+## Table of contents
 
 - [Usage](#usage)
 - [Models](#models)
@@ -30,14 +30,15 @@ model = astrospec.create_model("galspecnet", input_length=3522, num_classes=3)
 
 Spectra carry more than flux. Models declare which of `flux`, `wavelength`,
 `ivar`, `mask`, and `lsf_sigma` they consume. AstroSpec standardizes those
-names, not the preprocessing — surveys differ in grid, calibration, masking,
+names, not the preprocessing. Surveys differ in grid, calibration, masking,
 and resolution, and the library does not hide that.
 
 Transformer models here consume patches rather than pixels, so the library
-ships `astrospec.data.Patchify`; without it those models are unusable, and
-everything else about loading and preprocessing spectra is left to the caller.
-Applied with the same settings to every per-pixel quantity, it keeps them
-aligned, and it reports which patches are padding so a model can mask them.
+ships `astrospec.data.Patchify`. Those models will not run without it. The
+caller handles everything else about loading and preprocessing. Apply
+`Patchify` with the same settings to every per-pixel quantity and they stay
+aligned; it also reports which patches are padding, so a model can mask
+them.
 
 ```python
 from astrospec.data import Patchify
@@ -48,7 +49,7 @@ patches, valid = Patchify(patch_size=20)(flux)
 ## Models
 
 Each model is a plain `nn.Module` in `astrospec/models/`, one paper per module.
-Constructor arguments and shapes are documented in each class docstring.
+Each class docstring documents its constructor arguments and shapes.
 
 ### GalSpecNet
 
@@ -56,7 +57,7 @@ A 1-D convolutional classifier for optical spectra
 ([Wu et al. 2023, MNRAS 527:1163](https://doi.org/10.1093/mnras/stad2913)).
 Stacked convolutions with interleaved max-pooling compress the flux sequence,
 and a flat MLP maps the final activations to class logits. The head fixes the
-grid: spectra must be resampled to a common length. Consumes `flux`.
+grid, so resample spectra to a common length first. Consumes `flux`.
 
 ### SpectrumEncoder (spender)
 
@@ -65,8 +66,9 @@ The spectrum encoder of spender
 after [Serra et al. 2018](https://arxiv.org/abs/1805.03908). A convolutional
 stack splits its final channels into attention values and keys; the keys are
 softmaxed over the pixel axis and pool the values into a single vector, which
-an MLP compresses to a latent. That pooling makes the encoder length-agnostic —
-spectra on different grids yield the same latent shape. Consumes `flux`.
+an MLP compresses to a latent. That pooling makes the encoder
+length-agnostic: spectra on different grids yield the same latent shape.
+Consumes `flux`.
 
 ### SpecFormer
 
@@ -76,15 +78,15 @@ Flux patches enter through a linear embedding, a learned embedding of the patch
 index supplies position, and pre-norm transformer blocks produce one token per
 patch. Pretraining reconstructs masked patches; `forward_features` returns the
 tokens used downstream. Position is the patch index rather than `wavelength`,
-so a dataset must be patched on a consistent grid. Consumes `flux`, patched.
+so patch the dataset on a consistent grid. Consumes `flux`, patched.
 
 ### AstroPT
 
 A GPT-style causal transformer over spectral patches
 ([Smith et al. 2024, arXiv:2405.14930](https://arxiv.org/abs/2405.14930),
-[Smith42/astroPT](https://github.com/Smith42/astroPT)). Patches and the
-wavelengths of the same pixels are embedded by two tokenizers and summed, so
-position is continuous and physical rather than a rank-indexed lookup, and
+[Smith42/astroPT](https://github.com/Smith42/astroPT)). Two tokenizers embed
+the patches and the wavelengths of the same pixels, and the model sums the two,
+so position is continuous and physical rather than a rank-indexed lookup, and
 spectra on different grids stay comparable. Causal blocks let each patch attend
 only to its predecessors; pretraining predicts the next patch. The multimodal
 chaining of spectra onto this backbone is the
@@ -101,7 +103,14 @@ with the optional `huggingface_hub` dependency (`pip install astrospec[pretraine
 
 ## Examples
 
-*Plain PyTorch scripts and notebooks, added alongside the models they use.*
+Plain PyTorch notebooks in [`examples/`](examples/), added alongside the models
+they use. Both read SDSS spectra from a local MultimodalUniverse HDF5 tree or,
+failing that, stream them from the Hub.
+
+| Notebook | What it does |
+|---|---|
+| [`sdss_classification.ipynb`](examples/sdss_classification.ipynb) | Trains GalSpecNet to separate GALAXY / QSO / STAR |
+| [`specformer_pretraining.ipynb`](examples/specformer_pretraining.ipynb) | Pretrains SpecFormer on masked patches, then retrieves nearest neighbours in its embedding space |
 
 ## Resources
 
@@ -109,8 +118,8 @@ with the optional `huggingface_hub` dependency (`pip install astrospec[pretraine
 
 ## Citations
 
-If you find this library useful in your research, please consider citing it
-(see `CITATION.cff`), along with the original works behind the included models.
+Please cite this library (see `CITATION.cff`) along with the original works
+behind the models you use.
 
 ```bibtex
 @article{wu2024galaxy,

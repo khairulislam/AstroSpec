@@ -10,8 +10,8 @@ repository-code: "https://github.com/khairulislam/AstroSpec"
 url: "https://github.com/khairulislam/AstroSpec"
 abstract: >-
   AstroSpec collects spectroscopic architectures and foundation
-  models for astronomy under a single registry and a common
-  PyTorch interface, covering spectral classification, redshift
+  models for astronomy under one registry and a common PyTorch
+  interface. The models handle spectral classification, redshift
   estimation, stellar property estimation, and self-supervised
   representation learning on native instrument grids.
 keywords:
