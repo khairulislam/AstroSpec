@@ -117,13 +117,20 @@ class SelfAttention(nn.Module):
         q, k, v = self.attention(x).split(self.embedding_dim, dim=2)
         q, k, v = (t.view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2) for t in (q, k, v))
 
+        is_causal = self.causal
+        if is_causal and attn_mask is not None:
+            # combine explicitly rather than relying on both being honoured at once
+            causal = torch.ones(T, T, dtype=torch.bool, device=x.device).tril()
+            attn_mask = attn_mask & causal
+            is_causal = False
+
         y = F.scaled_dot_product_attention(
             q,
             k,
             v,
             attn_mask=attn_mask,
             dropout_p=self.dropout if self.training else 0.0,
-            is_causal=self.causal and attn_mask is None,
+            is_causal=is_causal,
         )
         y = y.transpose(1, 2).reshape(B, T, C)
         return self.residual_dropout(self.projection(y))

@@ -155,6 +155,43 @@ recon = model(patches, valid=valid)                    # (B, T, input_dim)
 Passing `valid` excludes padded patches from attention, so they cannot
 influence the tokens of real patches.
 
+### AstroPT
+
+A GPT-style causal transformer over spectral patches
+([arXiv:2405.14930](https://arxiv.org/abs/2405.14930),
+[Smith42/astroPT](https://github.com/Smith42/astroPT)). Patches are embedded
+through a two-layer `AimTokenizer` and summed with a second tokenizer applied
+to the wavelengths of the same pixels, so position is continuous and physical
+rather than a rank-indexed lookup — spectra on different grids stay comparable.
+Causal blocks then let each patch attend only to its predecessors.
+
+Consumes `flux` and `wavelength`, both patched. Pretraining predicts each patch
+from the ones before it under a Huber loss; the objective is documented here
+but lives in the examples, not in the model.
+
+| Argument | Default | Meaning |
+|---|---|---|
+| `input_dim` | `32` | pixels per patch |
+| `embed_dim` | `512` | model width |
+| `num_layers` | `8` | causal transformer blocks |
+| `num_heads` | `8` | attention heads per block |
+| `dropout` | `0.0` | AstroPT pretrains without dropout |
+| `bias` | `False` | AstroPT uses no biases in linear layers or layer norms |
+| `wavelength_range` | `(3000.0, 10000.0)` | min-max bounds normalizing wavelength before the position tokenizer |
+
+```python
+import astrospec
+from astrospec.data import Patchify
+
+model = astrospec.create_model("astropt")
+patchify = Patchify(patch_size=32)
+patches, valid = patchify(flux)
+wavelength_patches, _ = patchify(wavelength)
+
+tokens = model.forward_features(patches, wavelength_patches, valid=valid)
+next_patch = model(patches, wavelength_patches, valid=valid)
+```
+
 ## Pretrained weights
 
 `astrospec.pretrained` loads released checkpoints into the matching model,
