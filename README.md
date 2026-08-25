@@ -158,7 +158,7 @@ influence the tokens of real patches.
 ### AstroPT
 
 A GPT-style causal transformer over spectral patches
-([arXiv:2405.14930](https://arxiv.org/abs/2405.14930),
+([Smith et al. 2024, arXiv:2405.14930](https://arxiv.org/abs/2405.14930),
 [Smith42/astroPT](https://github.com/Smith42/astroPT)). Patches are embedded
 through a two-layer `AimTokenizer` and summed with a second tokenizer applied
 to the wavelengths of the same pixels, so position is continuous and physical
@@ -167,7 +167,9 @@ Causal blocks then let each patch attend only to its predecessors.
 
 Consumes `flux` and `wavelength`, both patched. Pretraining predicts each patch
 from the ones before it under a Huber loss; the objective is documented here
-but lives in the examples, not in the model.
+but lives in the examples, not in the model. The multimodal chaining of
+spectral data onto this backbone is the
+[Euclid Q1 follow-up](https://arxiv.org/abs/2503.15312).
 
 | Argument | Default | Meaning |
 |---|---|---|
@@ -245,5 +247,14 @@ If you find this library useful in your research, please consider citing it
   author    = {Parker, Liam and Lanusse, Francois and Golkar, Siavash and Sarra, Leopoldo and Cranmer, Miles and Bietti, Alberto and Eickenberg, Michael and Krawezik, Geraud and McCabe, Michael and Morel, Rudy and others},
   year      = {2024},
   doi       = {10.1093/mnras/stae1450}
+}
+
+@article{smith2024astropt,
+  title         = {AstroPT: Scaling Large Observation Models for Astronomy},
+  author        = {Smith, Michael J. and Roberts, Ryan J. and Angeloudi, Eirini and Huertas-Company, Marc},
+  year          = {2024},
+  eprint        = {2405.14930},
+  archivePrefix = {arXiv},
+  primaryClass  = {astro-ph.IM}
 }
 ```
