@@ -4,8 +4,13 @@ import astrospec
 from astrospec.registry import create_model, is_model, list_models, register_model
 
 
-def test_registry_starts_empty():
-    assert list_models() == []
+def test_known_models_are_registered():
+    assert is_model("galspecnet")
+
+
+def test_list_models_is_sorted():
+    models = list_models()
+    assert models == sorted(models)
 
 
 def test_create_model_unknown_name_raises():

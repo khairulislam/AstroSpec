@@ -25,7 +25,7 @@ pip install -e .
 import astrospec
 
 astrospec.list_models()
-model = astrospec.create_model("galspecnet", num_classes=3)
+model = astrospec.create_model("galspecnet", input_length=3522, num_classes=3)
 ```
 
 Spectra carry more than flux. Models declare which of `flux`, `wavelength`,
@@ -36,8 +36,35 @@ does not hide that.
 
 ## Models
 
-*One section per model, added as each is implemented: source paper, input
-shape, configurable arguments, and the use case that motivated its inclusion.*
+### GalSpecNet
+
+A 1-D convolutional classifier for optical spectra
+([Wu et al. 2023, MNRAS 527:1163](https://doi.org/10.1093/mnras/stad2913)).
+Stacked convolutions with interleaved max-pooling compress the flux sequence,
+and a flat MLP maps the final activations to class logits. Introduced for
+spectral classification of SDSS galaxies, it serves as the supervised baseline
+against which the self-supervised encoders here are measured.
+
+Consumes `flux` only. Fixed-grid: every spectrum must be resampled to
+`input_length` pixels, since the head is a flat MLP over the convolutional
+output.
+
+| Argument | Default | Meaning |
+|---|---|---|
+| `input_length` | — | pixels per spectrum |
+| `num_classes` | — | output dimension (logits, or regression targets) |
+| `conv_channels` | `(1, 64, 64, 32, 32)` | channel widths, starting at the raw flux channel |
+| `kernel_size` | `3` | convolution width, no padding |
+| `mp_kernel_size` | `4` | max-pool width, after every convolution but the last |
+| `dropout` | `0.1` | dropout before the head |
+| `n_hidden` | `(256, 64, 16)` | hidden widths of the MLP head |
+
+```python
+from astrospec.models import GalSpecNet
+
+model = GalSpecNet(input_length=3522, num_classes=3)
+logits = model(flux)  # (B, L) or (B, 1, L) -> (B, num_classes)
+```
 
 ## Pretrained weights
 
@@ -61,4 +88,14 @@ If you find this library useful in your research, please consider citing it
 (see `CITATION.cff`), along with the original works behind the included models.
 
 ```bibtex
+@article{wu2024galaxy,
+  title     = {Galaxy spectral classification and feature analysis based on convolutional neural network},
+  volume    = {527},
+  number    = {1},
+  pages     = {1163--1176},
+  journal   = {Monthly Notices of the Royal Astronomical Society},
+  author    = {Wu, Ying and Tao, Yihan and Fan, Dongwei and Cui, Chenzhou and Zhang, Yanxia},
+  year      = {2023},
+  doi       = {10.1093/mnras/stad2913}
+}
 ```

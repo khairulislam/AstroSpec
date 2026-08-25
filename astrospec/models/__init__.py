@@ -1,1 +1,3 @@
-__all__ = []
+from .galspecnet import GalSpecNet
+
+__all__ = ["GalSpecNet"]
