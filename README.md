@@ -34,6 +34,25 @@ section below. AstroSpec standardizes those names, not the preprocessing —
 surveys differ in grid, calibration, masking, and resolution, and the library
 does not hide that.
 
+### Patching
+
+Transformer encoders here consume patches, not pixels. `astrospec.data.Patchify`
+is the one data helper the library ships, because without it those models are
+unusable; everything else about loading and preprocessing spectra is left to
+the caller.
+
+```python
+from astrospec.data import Patchify
+
+patchify = Patchify(patch_size=20, overlap=0)
+patches, valid = patchify(flux)  # (L,) or (B, L) -> (B, T, 20), (B, T)
+```
+
+Applied with the same settings to `wavelength`, `ivar`, `mask`, or `lsf_sigma`,
+it keeps every per-pixel quantity aligned with the flux patches. Sequences that
+do not divide evenly are right-padded, and `valid` marks the padded tail patch
+so a model can mask it.
+
 ## Models
 
 ### GalSpecNet
