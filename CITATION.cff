@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: "AstroSpec: A unified library of spectral models for astronomy"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - given-names: "Md. Khairul"
+    family-names: Islam
+    affiliation: University of Virginia
+repository-code: "https://github.com/khairulislam/AstroSpec"
+url: "https://github.com/khairulislam/AstroSpec"
+abstract: >-
+  AstroSpec collects spectroscopic architectures and foundation
+  models for astronomy under a single registry and a common
+  PyTorch interface, covering spectral classification, redshift
+  estimation, stellar property estimation, and self-supervised
+  representation learning on native instrument grids.
+keywords:
+  - astronomy
+  - astrophysics
+  - deep-learning
+  - spectroscopy
+  - pytorch
+  - foundation-models
+  - redshift
+  - stellar-parameters
+license: MIT
+version: v0.1.0

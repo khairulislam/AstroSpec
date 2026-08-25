@@ -1,0 +1,23 @@
+{
+  "title": "AstroSpec: A unified library of spectral models for astronomy",
+  "description": "AstroSpec collects spectroscopic architectures and foundation models for astronomy under a single registry and a common PyTorch interface, covering spectral classification, redshift estimation, stellar property estimation, and self-supervised representation learning on native instrument grids.",
+  "creators": [
+    {
+      "name": "Islam, Md. Khairul",
+      "affiliation": "University of Virginia"
+    }
+  ],
+  "keywords": [
+    "astronomy",
+    "astrophysics",
+    "deep-learning",
+    "spectroscopy",
+    "pytorch",
+    "foundation-models",
+    "redshift",
+    "stellar-parameters"
+  ],
+  "license": "MIT",
+  "upload_type": "software",
+  "access_right": "open"
+}
