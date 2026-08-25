@@ -37,6 +37,10 @@ class SpectrumEncoder(nn.Module):
         act: MLP activations; defaults to ``PReLU`` per hidden layer.
         dropout: dropout rate in the convolutions and the MLP.
 
+    The defaults are the lightweight variant used as a baseline in
+    OmniSpectrum. spender's published encoder is ``filters=(128, 256, 512)``,
+    ``sizes=(5, 11, 21)``, ``n_hidden=(128, 64, 32)``.
+
     Shape:
         input ``(B, L)`` or ``(B, 1, L)`` -> output ``(B, n_latent)``.
     """
