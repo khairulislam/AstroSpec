@@ -6,7 +6,8 @@ stellar property estimation, and self-supervised representation learning on
 native instrument grids. Each is a self-contained implementation, with
 pretrained weights where available.
 
-<img src="assets/header.jpg" alt="Multiwavelength view of the Whirlpool Galaxy across the electromagnetic spectrum" width="500">
+<!-- <img src="assets/header.jpg" alt="Multiwavelength view of the Whirlpool Galaxy across the electromagnetic spectrum" width="500"> -->
+![Multiwavelength view of the Whirlpool Galaxy across the electromagnetic spectrum](assets/header.jpg)
 
 *The spiral galaxy M51 in Canes Venatici as imaged in several regions of the
 electromagnetic spectrum. The processes that produce the various forms of EM
@@ -67,6 +68,7 @@ docstring.
 | AstroPT | [Smith et al. 2024, arXiv:2405.14930](https://arxiv.org/abs/2405.14930) | `flux`, `wavelength`, patched | Next-patch prediction (autoregressive pretraining) | DESI Legacy Imaging (spectra: Euclid Q1 follow-up) |
 | GaSNet-III | [Zhong et al. 2025, MNRAS 543:691](https://doi.org/10.1093/mnras/staf1482) | `flux` | Spectrum reconstruction; downstream redshift estimation and anomaly detection | SDSS + DESI |
 | SpecPT | [Pattnaik et al. 2025, ApJ 988:139](https://doi.org/10.3847/1538-4357/ade053) | `flux` | Autoencoding (reconstruction); downstream redshift estimation via `SpecPTRedshift` | DESI + SDSS |
+| Universal Spectral Tokenizer | [Shen et al. 2025, arXiv:2510.17959](https://arxiv.org/abs/2510.17959) | `flux`, `wavelength`, `ivar`, patched | Autoencoding (reconstruction) on native, per-survey pixel grids | DESI + SDSS + GALAH + APOGEE |
 
 ## Pretrained weights
 
@@ -165,5 +167,14 @@ behind the models you use.
   author    = {Pattnaik, Rohan and Kartaltepe, Jeyhan S. and Binu, Clive},
   year      = {2025},
   doi       = {10.3847/1538-4357/ade053}
+}
+
+@article{shen2025universal,
+  title         = {Universal Spectral Tokenization via Self-Supervised Panchromatic Representation Learning},
+  author        = {Shen, Jeff and others},
+  year          = {2025},
+  eprint        = {2510.17959},
+  archivePrefix = {arXiv},
+  primaryClass  = {astro-ph.IM}
 }
 ```
