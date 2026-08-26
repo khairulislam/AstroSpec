@@ -96,6 +96,7 @@ with the optional `huggingface_hub` dependency (`pip install astrospec[pretraine
 |---|---|---|---|
 | SpecFormer | [`polymathic-ai/astroclip`](https://huggingface.co/polymathic-ai/astroclip) (AstroCLIP spectrum tower) | 43M | `flux`, patched |
 | AstroCLIP (full, via the `astroclip` package) | [`polymathic-ai/astroclip`](https://huggingface.co/polymathic-ai/astroclip) | 370M | `flux` (spectrum branch) + image |
+| AION-1 (via the `aion` package) | [`polymathic-ai/aion-base`](https://huggingface.co/polymathic-ai/aion-base) | 314M | `flux`, `wavelength`, `ivar`, `mask` (native grid) + 38 other modalities |
 
 ## Examples
 
@@ -111,6 +112,7 @@ tree or, failing that, streams them from the Hub.
 | [`specformer_pretraining.ipynb`](examples/specformer_pretraining.ipynb) | Pretrains SpecFormer on masked patches, then retrieves nearest neighbours in its embedding space |
 | [`specformer_pretrained_similarity_search.ipynb`](examples/specformer_pretrained_similarity_search.ipynb) | Loads SpecFormer's released weights (from AstroCLIP's checkpoint) and retrieves nearest neighbours, no training |
 | [`astroclip_similarity_search.ipynb`](examples/astroclip_similarity_search.ipynb) | Loads the full released AstroCLIP model and retrieves nearest neighbours by its aligned spectrum embedding |
+| [`aion_spectrum_embeddings.ipynb`](examples/aion_spectrum_embeddings.ipynb) | Loads the released AION-1 model and retrieves nearest neighbours by its omnimodal spectrum embedding |
 
 ## Resources
 

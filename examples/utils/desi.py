@@ -103,6 +103,51 @@ def _read_local(
     return flux, np.concatenate(z).astype(np.float32) if redshift else None
 
 
+def load_native(n: int, root: str = None, redshift: bool = False) -> tuple:
+    """Load ``n`` spectra with their per-pixel inverse variance and bad-pixel mask.
+
+    Returns ``(flux, ivar, mask, wavelength, z)``, all local-tree only: AION's
+    spectrum codec (see ``utils/aion.py``) wants ``ivar`` and ``mask``
+    directly, which the Hub release does not carry. ``wavelength`` is the
+    file's own ``spectrum_lambda``, identical for every DESI EDR row, but read
+    per row rather than assumed so a differently-processed tree is still
+    handled correctly.
+    """
+    import h5py
+
+    files = local_files(root)
+    if not files:
+        raise FileNotFoundError(
+            "no local DESI HDF5 found; set ASTROSPEC_DESI_ROOT to a directory of "
+            "healpix=*/ shards (ivar/mask are not in the Hub release)"
+        )
+
+    flux, ivar, mask, wavelength, z = [], [], [], [], []
+    taken = 0
+    for path in files:
+        if taken >= n:
+            break
+        with h5py.File(path, "r") as file:
+            rows = np.arange(min(n - taken, 200, len(file["Z"])))
+            if not len(rows):
+                continue
+            flux.extend(file["spectrum_flux"][rows])
+            ivar.extend(file["spectrum_ivar"][rows])
+            mask.extend(file["spectrum_mask"][rows])
+            wavelength.extend(file["spectrum_lambda"][rows])
+            if redshift:
+                z.append(file["Z"][rows])
+            taken += len(rows)
+
+    return (
+        np.stack(flux).astype(np.float32),
+        np.stack(ivar).astype(np.float32),
+        np.stack(mask).astype(bool),
+        np.stack(wavelength).astype(np.float32),
+        np.concatenate(z).astype(np.float32) if redshift else None,
+    )
+
+
 def _read_hf(n: int, redshift: bool) -> tuple:
     from datasets import load_dataset
     from tqdm.auto import tqdm

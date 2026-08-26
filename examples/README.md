@@ -44,7 +44,10 @@ export ASTROSPEC_DESI_ROOT=/path/to/desi/edr_sv3   # a directory of healpix=*/ s
 ```
 
 Every spectrum in this release already sits on the same 7,781-pixel grid, so
-`utils/desi.py` does no resampling.
+`utils/desi.py` does no resampling. `aion_spectrum_embeddings.ipynb` uses the
+same DESI tree but through `desi.load_native`, which also reads per-pixel
+inverse variance and the bad-pixel mask, since AION's own spectrum codec wants
+those directly rather than a resampled grid.
 
 `spender_redshift_regression_on_sdss.ipynb` uses the same SDSS/DESI sources and
 their pipeline `Z` values as regression targets. Like the class-label example it
@@ -129,3 +132,16 @@ the same nearest-neighbour retrieval as the other two SpecFormer notebooks
 follows. Unlike them, needs the `astroclip` package and its `dinov2`
 dependency (both `--no-deps` git installs, per the notebook's install cell),
 so it cannot run from `astrospec[pretrained]` alone.
+
+## `aion_spectrum_embeddings.ipynb`
+
+Loads the released `aion-base` checkpoint via
+`astrospec.pretrained.load_pretrained_aion`, the spectrum-side counterpart to
+AstroLens's `aion_embeddings.ipynb`, which does the image side of the same
+model. Builds an `aion.modalities.DESISpectrum` from native
+`(flux, ivar, mask, wavelength)`, encodes it through AION's `CodecManager`,
+mean-pools the 273 resulting tokens, and runs the same nearest-neighbour
+retrieval as the SpecFormer and AstroCLIP notebooks, on 2,000 spectra. Unlike
+`astroclip_similarity_search.ipynb`, the `aion` extra
+(`pip install astrospec[aion]`) is a normal package install, no `--no-deps`
+git installs needed.
