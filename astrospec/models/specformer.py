@@ -24,8 +24,9 @@ class SpecFormer(nn.Module):
     which is the masked-modelling objective the encoder is pretrained with; the
     tokens themselves are the representation used downstream.
 
-    Consumes ``flux`` only, already patched (see :class:`astrospec.data.Patchify`).
-    Position comes from the patch index, not from ``wavelength``, so patch every
+    Consumes ``flux`` only, already patched (see :class:`astrospec.data.Patchify`);
+    ``wavelength``, ``ivar``, ``mask``, and ``lsf_sigma`` are ignored. Position
+    comes from the patch index, not from ``wavelength``, so patch every
     spectrum in a dataset on the same grid, or the position embedding means a
     different thing from one spectrum to the next.
 
@@ -85,21 +86,21 @@ class SpecFormer(nn.Module):
         self.blocks.apply(lambda m: init_by_depth(m, num_layers))
         self.head.apply(lambda m: init_by_depth(m, 1 / 2))
 
-    def forward_features(self, patches, valid: Optional[torch.Tensor] = None):
+    def forward_features(self, flux, valid: Optional[torch.Tensor] = None):
         """Encode patches into one token each, without the reconstruction head.
 
         Args:
-            patches: ``(B, T, input_dim)``.
+            flux: ``(B, T, input_dim)``, already patched.
             valid: optional ``(B, T)`` boolean, ``False`` on padded patches, as
                 returned by :class:`astrospec.data.Patchify`. Attention skips
                 padded patches so they cannot influence real tokens.
         """
-        t = patches.shape[1]
+        t = flux.shape[1]
         if t > self.max_len:
             raise ValueError(f"sequence of {t} patches exceeds max_len={self.max_len}")
 
-        pos = torch.arange(t, dtype=torch.long, device=patches.device)
-        x = self.dropout(self.data_embed(patches) + self.position_embed(pos))
+        pos = torch.arange(t, dtype=torch.long, device=flux.device)
+        x = self.dropout(self.data_embed(flux) + self.position_embed(pos))
 
         attn_mask = None
         if valid is not None:
@@ -110,9 +111,9 @@ class SpecFormer(nn.Module):
             x = block(x, attn_mask=attn_mask)
         return self.final_layernorm(x)
 
-    def forward(self, patches, valid: Optional[torch.Tensor] = None):
+    def forward(self, flux, valid: Optional[torch.Tensor] = None):
         """Reconstruct each patch from its token."""
-        return self.head(self.forward_features(patches, valid=valid))
+        return self.head(self.forward_features(flux, valid=valid))
 
 
 @register_model

@@ -47,7 +47,7 @@ class AstroPT(nn.Module):
     grids are directly comparable.
 
     Training is not implemented here. The pretraining objective is a Huber loss
-    between ``forward(...)[:, :-1]`` and ``patches[:, 1:]`` over patch pairs
+    between ``forward(...)[:, :-1]`` and ``flux[:, 1:]`` over patch pairs
     that are both valid; see the examples.
 
     Args:
@@ -61,7 +61,7 @@ class AstroPT(nn.Module):
             these bounds before the position tokenizer, as in AstroPT.
 
     Shape:
-        ``patches`` and ``wavelength`` ``(B, T, input_dim)`` -> predictions
+        ``flux`` and ``wavelength`` ``(B, T, input_dim)`` -> predictions
         ``(B, T, input_dim)``, features ``(B, T, embed_dim)``.
     """
 
@@ -103,16 +103,16 @@ class AstroPT(nn.Module):
             tokenizer.apply(lambda m: init_by_depth(m, 1 / 2))
         self.blocks.apply(lambda m: init_by_depth(m, num_layers))
 
-    def forward_features(self, patches, wavelength, valid: Optional[torch.Tensor] = None):
+    def forward_features(self, flux, wavelength, valid: Optional[torch.Tensor] = None):
         """Encode patches into one causal hidden state each.
 
         Args:
-            patches: ``(B, T, input_dim)`` flux patches.
+            flux: ``(B, T, input_dim)`` flux patches.
             wavelength: ``(B, T, input_dim)`` wavelengths of the same pixels, in A.
             valid: optional ``(B, T)`` boolean, ``False`` on padded patches.
         """
         low, high = self.wavelength_range
-        x = self.data_embed(patches) + self.pos_embed((wavelength - low) / (high - low))
+        x = self.data_embed(flux) + self.pos_embed((wavelength - low) / (high - low))
 
         # a query attends to valid keys only; the blocks add causality on top
         attn_mask = None if valid is None else valid.bool()[:, None, None, :]
@@ -120,9 +120,9 @@ class AstroPT(nn.Module):
             x = block(x, attn_mask=attn_mask)
         return self.norm(x)
 
-    def forward(self, patches, wavelength, valid: Optional[torch.Tensor] = None):
+    def forward(self, flux, wavelength, valid: Optional[torch.Tensor] = None):
         """Predict the next patch from each position."""
-        return self.head(self.forward_features(patches, wavelength, valid=valid))
+        return self.head(self.forward_features(flux, wavelength, valid=valid))
 
 
 @register_model

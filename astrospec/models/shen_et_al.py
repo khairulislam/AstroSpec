@@ -71,9 +71,10 @@ class ShenSpectralTokenizer(nn.Module):
 
     Consumes ``flux``, ``wavelength``, and optionally ``ivar``, all patched
     (see :class:`astrospec.data.Patchify`) with the same patch size; ``ivar``
-    defaults to a uniform weight of one when omitted. Padded patches are
-    excluded as attention keys wherever ``valid`` is given, the same
-    key-only convention as :class:`astrospec.models.SpecFormer`.
+    defaults to a uniform weight of one when omitted, and ``mask`` and
+    ``lsf_sigma`` are ignored. Padded patches are excluded as attention keys
+    wherever ``valid`` is given, the same key-only convention as
+    :class:`astrospec.models.SpecFormer`.
 
     Pretraining minimizes a measurement-error-weighted Gaussian/Huber
     reconstruction loss over valid pixels; that loss and the training loop

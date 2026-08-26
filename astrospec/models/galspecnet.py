@@ -7,6 +7,7 @@ from typing import Sequence
 
 from torch import nn
 
+from ..layers import MLP
 from ..registry import register_model
 
 __all__ = ["GalSpecNet", "galspecnet"]
@@ -65,13 +66,9 @@ class GalSpecNet(nn.Module):
 
         self.features = nn.Sequential(*layers)
         self.dropout = nn.Dropout(dropout)
-
-        widths = [conv_channels[-1] * length, *n_hidden, num_classes]
-        head = []
-        for i in range(len(widths) - 2):
-            head += [nn.Linear(widths[i], widths[i + 1]), nn.LeakyReLU()]
-        head.append(nn.Linear(widths[-2], widths[-1]))
-        self.head = nn.Sequential(*head)
+        # dropout=0.0: GalSpecNet applies dropout once, above, before the head,
+        # not between the head's own layers.
+        self.head = MLP(conv_channels[-1] * length, num_classes, n_hidden=n_hidden, dropout=0.0)
 
     def forward(self, flux):
         if flux.ndim == 2:

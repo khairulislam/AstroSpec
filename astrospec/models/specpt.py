@@ -96,9 +96,10 @@ class _ResidualMLPBlock(nn.Module):
 class SpecPTEncoder(nn.Module):
     """Conv feature extractor, linear projection, and a transformer encoder.
 
-    Consumes ``flux`` only, on the fixed grid the conv stages were sized for:
-    the OmniSpectrum configuration resamples DESI and SDSS spectra onto a
-    common 0.8 A/pixel grid from 3600 to 9824 A, 7780 pixels.
+    Consumes ``flux`` only; ``wavelength``, ``ivar``, ``mask``, and
+    ``lsf_sigma`` are ignored. Fixed-grid model: the conv stages are sized for
+    the OmniSpectrum configuration, which resamples DESI and SDSS spectra onto
+    a common 0.8 A/pixel grid from 3600 to 9824 A, 7780 pixels.
 
     Args:
         embed_dim: model width.
@@ -119,6 +120,7 @@ class SpecPTEncoder(nn.Module):
     ):
         super().__init__()
 
+        self.embed_dim = embed_dim
         self.conv = _ConvEncoder()
         self.projection = nn.Linear(256, embed_dim)
         self.dropout = nn.Dropout(dropout)
@@ -128,11 +130,15 @@ class SpecPTEncoder(nn.Module):
         )
         self.norm = LayerNorm(embed_dim)
 
-    def forward(self, flux):
+    def forward_features(self, flux):
+        """Encode a spectrum into one token per conv-downsampled position."""
         x = self.dropout(self.projection(self.conv(flux)))
         for block in self.blocks:
             x = block(x)
         return self.norm(x)
+
+    def forward(self, flux):
+        return self.forward_features(flux)
 
 
 class SpecPTAutoencoder(nn.Module):
@@ -146,6 +152,9 @@ class SpecPTAutoencoder(nn.Module):
     see the examples. The pretrained :attr:`encoder` is what
     :class:`SpecPTRedshift` builds on.
 
+    Consumes ``flux`` only, on the same fixed grid as :class:`SpecPTEncoder`;
+    ``wavelength``, ``ivar``, ``mask``, and ``lsf_sigma`` are ignored.
+
     Args:
         input_len: spectrum length, also sizing the decoder query bank.
         embed_dim: model width.
@@ -155,7 +164,8 @@ class SpecPTAutoencoder(nn.Module):
         dropout: dropout throughout the encoder and decoder.
 
     Shape:
-        ``flux`` ``(B, input_len)`` -> reconstruction ``(B, input_len)``.
+        ``flux`` ``(B, input_len)`` -> reconstruction ``(B, input_len)``,
+        features ``(B, input_len // 8, embed_dim)``.
     """
 
     def __init__(
@@ -170,6 +180,7 @@ class SpecPTAutoencoder(nn.Module):
         super().__init__()
 
         self.input_len = input_len
+        self.embed_dim = embed_dim
         self.encoder = SpecPTEncoder(
             embed_dim=embed_dim, num_layers=num_enc_layers, num_heads=num_heads, dropout=dropout
         )
@@ -186,9 +197,13 @@ class SpecPTAutoencoder(nn.Module):
         self.decoder_projection = nn.Linear(embed_dim, 256)
         self.conv_decoder = _ConvDecoder(output_len=input_len)
 
+    def forward_features(self, flux):
+        """Encode a spectrum into one token per patch, without the decoder."""
+        return self.encoder(flux)
+
     def forward(self, flux):
         N = flux.shape[1]
-        memory = self.encoder(flux)
+        memory = self.forward_features(flux)
         T = memory.shape[1]
         queries = self.decoder_queries[:, :T, :].expand(memory.shape[0], -1, -1)
 
@@ -260,6 +275,9 @@ class SpecPTRedshift(nn.Module):
     checkpoint into :attr:`encoder` is left to the caller, since it is a
     weight-transfer step rather than something this constructor should do.
 
+    Consumes ``flux`` only, on the same fixed grid as :class:`SpecPTEncoder`;
+    ``wavelength``, ``ivar``, ``mask``, and ``lsf_sigma`` are ignored.
+
     Args:
         embed_dim: model width, shared by the encoder and the head.
         num_enc_layers: transformer encoder blocks.
@@ -269,7 +287,8 @@ class SpecPTRedshift(nn.Module):
         freeze_encoder: if True, the encoder's parameters do not require grad.
 
     Shape:
-        ``flux`` ``(B, N)`` -> redshift ``(B,)``.
+        ``flux`` ``(B, N)`` -> redshift ``(B,)``, features
+        ``(B, N // 8, embed_dim)``.
     """
 
     def __init__(
@@ -283,6 +302,7 @@ class SpecPTRedshift(nn.Module):
     ):
         super().__init__()
 
+        self.embed_dim = embed_dim
         self.encoder = SpecPTEncoder(
             embed_dim=embed_dim, num_layers=num_enc_layers, num_heads=num_heads, dropout=dropout
         )
@@ -294,8 +314,12 @@ class SpecPTRedshift(nn.Module):
             embed_dim=embed_dim, num_heads=num_heads, num_blocks=num_mlp_blocks, dropout=0.2
         )
 
+    def forward_features(self, flux):
+        """Encode a spectrum into one token per patch, without the redshift head."""
+        return self.encoder(flux)
+
     def forward(self, flux):
-        return self.head(self.encoder(flux))
+        return self.head(self.forward_features(flux))
 
 
 @register_model

@@ -21,6 +21,11 @@ def test_create_model_from_registry():
     assert isinstance(model, GaSNet3)
 
 
+def test_registry_defaults_match_omnispectrum_training_config():
+    model = astrospec.create_model("gasnet3")
+    assert model.eigenvectors.shape == (20, 9413)  # (n_eigenvectors, output_dim)
+
+
 @pytest.mark.parametrize("shape", [(2, INPUT_DIM), (2, 1, INPUT_DIM)])
 def test_forward_shape(model, shape):
     recon, coef = model(torch.randn(*shape))

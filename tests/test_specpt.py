@@ -16,6 +16,7 @@ class TestSpecPTEncoder:
     def test_forward_shape(self, model):
         flux = torch.randn(2, INPUT_LEN)
         assert model(flux).shape == (2, T, EMBED_DIM)
+        assert model.forward_features(flux).shape == (2, T, EMBED_DIM)
 
     def test_backward(self, model):
         model.train()
@@ -48,6 +49,7 @@ class TestSpecPTAutoencoder:
 
     def test_forward_shape(self, model):
         assert model(torch.randn(2, INPUT_LEN)).shape == (2, INPUT_LEN)
+        assert model.forward_features(torch.randn(2, INPUT_LEN)).shape == (2, T, EMBED_DIM)
 
     def test_backward(self, model):
         model.train()
@@ -103,6 +105,7 @@ class TestSpecPTRedshift:
             embed_dim=EMBED_DIM, num_enc_layers=2, num_heads=NUM_HEADS, num_mlp_blocks=2
         ).eval()
         assert model(torch.randn(2, INPUT_LEN)).shape == (2,)
+        assert model.forward_features(torch.randn(2, INPUT_LEN)).shape == (2, T, EMBED_DIM)
 
     def test_freeze_encoder_excludes_it_from_backward(self):
         model = SpecPTRedshift(

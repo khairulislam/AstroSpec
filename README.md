@@ -70,6 +70,23 @@ docstring.
 | SpecPT | [Pattnaik et al. 2025, ApJ 988:139](https://doi.org/10.3847/1538-4357/ade053) | `flux` | Autoencoding (reconstruction); downstream redshift estimation via `SpecPTRedshift` | DESI + SDSS |
 | Universal Spectral Tokenizer | [Shen et al. 2025, arXiv:2510.17959](https://arxiv.org/abs/2510.17959) | `flux`, `wavelength`, `ivar`, patched | Autoencoding (reconstruction) on native, per-survey pixel grids | DESI + SDSS + GALAH + APOGEE |
 
+### Downstream heads
+
+A sequence encoder's tokens (`(B, T, embed_dim)`, from `forward_features` or
+equivalent) need a fixed-size vector before a classification or regression
+loss can apply to them. `astrospec.heads.CrossAttentionHead` does that
+pooling: a learned query token cross-attends over the sequence, followed by
+an MLP to the target width. This is the same head OmniSpectrum uses for
+frozen-embedding evaluation and end-to-end fine-tuning alike, across
+SpecFormer, AstroPT, SpecPT, and the Universal Spectral Tokenizer.
+
+```python
+from astrospec.heads import CrossAttentionHead
+
+head = CrossAttentionHead(embed_dim=768, num_outputs=3)
+logits = head(tokens)  # (B, num_outputs)
+```
+
 ## Pretrained weights
 
 `astrospec.pretrained` loads released checkpoints into the matching model,

@@ -77,5 +77,11 @@ class GaSNet3(nn.Module):
 
 
 @register_model
-def gasnet3(input_dim: int = 3522, output_dim: int = 4000, **kwargs) -> GaSNet3:
+def gasnet3(input_dim: int = 4642, output_dim: int = 9413, **kwargs) -> GaSNet3:
+    """GaSNet-III at the OmniSpectrum training configuration.
+
+    input_dim=4642 covers 3568-10387 A (the full BOSS/eBOSS range) at
+    delta_loglam=1e-4; output_dim=9413 extends that grid to a trial redshift
+    of z_max=2.
+    """
     return GaSNet3(input_dim=input_dim, output_dim=output_dim, **kwargs)
