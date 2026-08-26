@@ -1,5 +1,7 @@
 from .mlp import MLP
 from .transformer import (
+    CrossAttention,
+    CrossAttentionBlock,
     FeedForward,
     LayerNorm,
     SelfAttention,
@@ -9,6 +11,8 @@ from .transformer import (
 
 __all__ = [
     "MLP",
+    "CrossAttention",
+    "CrossAttentionBlock",
     "FeedForward",
     "LayerNorm",
     "SelfAttention",

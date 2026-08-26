@@ -8,7 +8,15 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-__all__ = ["LayerNorm", "FeedForward", "SelfAttention", "TransformerBlock", "init_by_depth"]
+__all__ = [
+    "LayerNorm",
+    "FeedForward",
+    "SelfAttention",
+    "CrossAttention",
+    "TransformerBlock",
+    "CrossAttentionBlock",
+    "init_by_depth",
+]
 
 
 class LayerNorm(nn.Module):
@@ -136,6 +144,60 @@ class SelfAttention(nn.Module):
         return self.residual_dropout(self.projection(y))
 
 
+class CrossAttention(nn.Module):
+    """Multi-head attention from one sequence of queries into another of context.
+
+    Args:
+        embedding_dim: model width; must divide evenly by ``num_heads``.
+        num_heads: number of attention heads.
+        dropout: applied to the residual pathway.
+        bias: whether the projections carry biases.
+
+    Shape:
+        ``x`` ``(B, Tq, embedding_dim)``, ``context`` ``(B, Tk, embedding_dim)``
+        -> output ``(B, Tq, embedding_dim)``. ``attn_mask`` follows
+        ``torch.nn.functional.scaled_dot_product_attention``: a boolean tensor
+        broadcastable to ``(B, num_heads, Tq, Tk)`` where ``True`` marks
+        positions that may be attended to.
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int,
+        num_heads: int,
+        dropout: float = 0.0,
+        bias: bool = True,
+    ):
+        super().__init__()
+        if embedding_dim % num_heads:
+            raise ValueError(
+                f"embedding_dim={embedding_dim} is not divisible by num_heads={num_heads}"
+            )
+
+        self.embedding_dim = embedding_dim
+        self.num_heads = num_heads
+        self.dropout = dropout
+
+        self.query = nn.Linear(embedding_dim, embedding_dim, bias=bias)
+        self.key_value = nn.Linear(embedding_dim, 2 * embedding_dim, bias=bias)
+        self.projection = nn.Linear(embedding_dim, embedding_dim, bias=bias)
+        self.residual_dropout = nn.Dropout(dropout)
+
+    def forward(self, x, context, attn_mask: Optional[torch.Tensor] = None):
+        B, Tq, C = x.shape
+        _, Tk, _ = context.shape
+        H = self.num_heads
+
+        q = self.query(x).view(B, Tq, H, C // H).transpose(1, 2)
+        k, v = self.key_value(context).view(B, Tk, 2, H, C // H).permute(2, 0, 3, 1, 4)
+
+        y = F.scaled_dot_product_attention(
+            q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
+        )
+        y = y.transpose(1, 2).reshape(B, Tq, C)
+        return self.residual_dropout(self.projection(y))
+
+
 class TransformerBlock(nn.Module):
     """Pre-norm self-attention and feed-forward, each on a residual branch.
 
@@ -171,6 +233,58 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x, attn_mask: Optional[torch.Tensor] = None):
         x = x + self.attention(self.layernorm1(x), attn_mask=attn_mask)
+        return x + self.mlp(self.layernorm2(x))
+
+
+class CrossAttentionBlock(nn.Module):
+    """Pre-norm self-attention, cross-attention, and feed-forward, each on a
+    residual branch.
+
+    For a sequence that both attends to itself and reads from a second,
+    external sequence: a transformer decoder reconstructing a sequence by
+    cross-attending into an encoder's output.
+
+    Args:
+        embedding_dim: model width.
+        num_heads: number of attention heads.
+        dropout: used in both attentions, the residual pathways, and the
+            feed-forward.
+        bias: whether the layer norms and linear layers carry biases.
+        mlp_expansion: hidden width of the feed-forward, as a multiple of
+            ``embedding_dim``.
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int,
+        num_heads: int,
+        dropout: float = 0.0,
+        bias: bool = True,
+        mlp_expansion: int = 4,
+    ):
+        super().__init__()
+
+        self.layernorm1 = LayerNorm(embedding_dim, bias=bias)
+        self.self_attention = SelfAttention(embedding_dim, num_heads, dropout=dropout, bias=bias)
+        self.query_norm = LayerNorm(embedding_dim, bias=bias)
+        self.context_norm = LayerNorm(embedding_dim, bias=bias)
+        self.cross_attention = CrossAttention(embedding_dim, num_heads, dropout=dropout, bias=bias)
+        self.layernorm2 = LayerNorm(embedding_dim, bias=bias)
+        self.mlp = FeedForward(
+            embedding_dim, mlp_expansion * embedding_dim, dropout=dropout, bias=bias
+        )
+
+    def forward(
+        self,
+        x,
+        context,
+        self_attn_mask: Optional[torch.Tensor] = None,
+        cross_attn_mask: Optional[torch.Tensor] = None,
+    ):
+        x = x + self.self_attention(self.layernorm1(x), attn_mask=self_attn_mask)
+        x = x + self.cross_attention(
+            self.query_norm(x), self.context_norm(context), attn_mask=cross_attn_mask
+        )
         return x + self.mlp(self.layernorm2(x))
 
 

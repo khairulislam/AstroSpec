@@ -66,6 +66,7 @@ docstring.
 | SpecFormer | [Parker et al. 2024, MNRAS 531:4990](https://doi.org/10.1093/mnras/stae1450) | `flux`, patched | Masked patch reconstruction; cross-modal (image-spectrum) contrastive pretraining | DESI + DESI Legacy Imaging |
 | AstroPT | [Smith et al. 2024, arXiv:2405.14930](https://arxiv.org/abs/2405.14930) | `flux`, `wavelength`, patched | Next-patch prediction (autoregressive pretraining) | DESI Legacy Imaging (spectra: Euclid Q1 follow-up) |
 | GaSNet-III | [Zhong et al. 2025, MNRAS 543:691](https://doi.org/10.1093/mnras/staf1482) | `flux` | Spectrum reconstruction; downstream redshift estimation and anomaly detection | SDSS + DESI |
+| SpecPT | [Pattnaik et al. 2025, ApJ 988:139](https://doi.org/10.3847/1538-4357/ade053) | `flux` | Autoencoding (reconstruction); downstream redshift estimation via `SpecPTRedshift` | DESI + SDSS |
 
 ## Pretrained weights
 
@@ -153,5 +154,16 @@ behind the models you use.
   author    = {Zhong, Fucheng and Napolitano, Nicola R and Heneka, Caroline and Krogager, Jens-Kristian and Demarco, Ricardo and Bouch{\'e}, Nicolas F and Loveday, Jonathan and Fritz, Alexander and Verdier, Aur{\'e}lien and Roukema, Boudewijn F and others},
   year      = {2025},
   doi       = {10.1093/mnras/staf1482}
+}
+
+@article{pattnaik2025specpt,
+  title     = {SpecPT (Spectroscopy Pre-trained Transformer) Model for Extragalactic Spectroscopy. I. Architecture and Automated Redshift Measurement},
+  volume    = {988},
+  number    = {1},
+  pages     = {139},
+  journal   = {The Astrophysical Journal},
+  author    = {Pattnaik, Rohan and Kartaltepe, Jeyhan S. and Binu, Clive},
+  year      = {2025},
+  doi       = {10.3847/1538-4357/ade053}
 }
 ```
