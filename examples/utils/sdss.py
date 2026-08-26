@@ -25,8 +25,16 @@ from glob import glob
 
 import numpy as np
 
+from .preprocess import standardize
+
 HF_DATASET = "MultimodalUniverse/sdss"
 CLASS_NAMES = ["GALAXY", "QSO", "STAR"]
+
+#: dataset column holding the pipeline classification (``SPECTYPE`` in DESI)
+CLASS_COLUMN = "CLASS"
+
+#: dataset column holding the redshift warning bitmask (``ZWARN`` in DESI)
+ZWARN_COLUMN = "ZWARNING"
 
 #: log-spaced wavelength grid in Angstrom, the SDSS 1e-4 dex pixel spacing over
 #: the range the legacy spectrograph covers for nearly every object.
@@ -46,20 +54,6 @@ def resample(flux, wavelength, grid: np.ndarray = COMMON_GRID) -> np.ndarray:
         keep = w > 0
         out[i] = np.interp(grid, w[keep], np.nan_to_num(f)[keep], left=0.0, right=0.0)
     return out
-
-
-def standardize(flux: np.ndarray) -> np.ndarray:
-    """Replace non-finite pixels with zero and standardize each spectrum.
-
-    Flux is in survey units and varies by orders of magnitude between objects,
-    while the models expect a NaN-free, roughly unit-scale sequence.
-    Per-spectrum standardization discards the absolute flux level, so it suits
-    shape-driven tasks (classification, redshift) rather than photometric ones.
-    """
-    flux = np.nan_to_num(flux, nan=0.0, posinf=0.0, neginf=0.0)
-    mean = flux.mean(axis=-1, keepdims=True)
-    std = flux.std(axis=-1, keepdims=True)
-    return (flux - mean) / np.maximum(std, 1e-6)
 
 
 def local_files(root: str = None) -> list:
@@ -115,22 +109,94 @@ def load_classes(n_per_class: int, root: str = None, seed: int = 0) -> tuple:
     return flux[order], labels[order].astype(np.int64)
 
 
-def load_spectra(n: int, root: str = None, redshift: bool = False) -> tuple:
+def load_sample(n: int, root: str = None, seed: int = 0) -> tuple:
+    """Draw ``n`` GALAXY / QSO / STAR spectra from the local tree, unbalanced.
+
+    Unlike :func:`load_classes`, classes are not equalized: the returned
+    labels carry SDSS's real class prevalence (mostly GALAXY, few QSO), which
+    is what a model sees at inference time. Returns ``(flux, labels)`` as in
+    :func:`load_classes`.
+    """
+    import h5py
+
+    files = local_files(root)
+    if not files:
+        raise FileNotFoundError(
+            "no local SDSS HDF5 found; set ASTROSPEC_SDSS_ROOT to a directory of "
+            "healpix=*/ shards (the Hub copy carries no CLASS labels)"
+        )
+
+    wanted = {name.encode().ljust(6): i for i, name in enumerate(CLASS_NAMES)}
+    flux, wavelength, labels = [], [], []
+    taken = 0
+    for path in files:
+        if taken >= n:
+            break
+        with h5py.File(path, "r") as file:
+            classes = file["CLASS"][:]
+            keep = np.flatnonzero(np.isin(classes, list(wanted)))[: n - taken]
+            if len(keep) == 0:
+                continue
+            flux.extend(file["spectrum_flux"][keep])
+            wavelength.extend(file["spectrum_lambda"][keep])
+            labels.extend(wanted[c] for c in classes[keep])
+            taken += len(keep)
+
+    if taken < n:
+        raise ValueError(f"only found {taken} labeled spectra, wanted {n}")
+
+    flux = resample(flux, wavelength)
+    labels = np.asarray(labels, dtype=np.int64)
+    order = np.random.default_rng(seed).permutation(taken)
+    return flux[order], labels[order]
+
+
+def load_spectra(
+    n: int,
+    root: str = None,
+    redshift: bool = False,
+    classes: tuple = None,
+    max_zwarning: int = None,
+) -> tuple:
     """Load ``n`` spectra, from the local tree if there is one, else the Hub.
 
     Returns ``(flux, z)``, both resampled onto :data:`COMMON_GRID`, with ``z``
     ``None`` unless ``redshift``. Read in file order rather than sampled, at
     most 200 per local shard so the subset spreads over the sky instead of
     sitting inside one healpix pixel.
+
+    ``classes`` restricts the sample to pipeline :data:`CLASS_COLUMN` values,
+    e.g. ``("GALAXY",)``. Redshift means something different for each class, so
+    a regression on ``Z`` should pick one.
+
+    ``max_zwarning`` keeps only rows whose :data:`ZWARN_COLUMN` bitmask is at
+    most this; pass ``0`` to drop every redshift the pipeline flagged, which is
+    what a supervised target should use.
+
+    Both filters need the local tree, since the Hub copy carries neither column.
     """
     files = local_files(root)
+    if (classes is not None or max_zwarning is not None) and not files:
+        raise FileNotFoundError(
+            f"filtering on {CLASS_COLUMN}/{ZWARN_COLUMN} needs a local SDSS tree; set "
+            "ASTROSPEC_SDSS_ROOT to a directory of healpix=*/ shards (the Hub copy "
+            "carries neither column)"
+        )
     flux, wavelength, z = (
-        _read_local(files, n, redshift) if files else _read_hf(n, redshift)
+        _read_local(files, n, redshift, classes, max_zwarning)
+        if files
+        else _read_hf(n, redshift)
     )
     return resample(flux, wavelength), z
 
 
-def _read_local(files: list, n: int, redshift: bool) -> tuple:
+def _read_local(
+    files: list,
+    n: int,
+    redshift: bool,
+    classes: tuple = None,
+    max_zwarning: int = None,
+) -> tuple:
     import h5py
 
     flux, wavelength, z = [], [], []
@@ -139,13 +205,19 @@ def _read_local(files: list, n: int, redshift: bool) -> tuple:
         if taken >= n:
             break
         with h5py.File(path, "r") as file:
-            rows = slice(0, min(n - taken, 200))
-            shard = file["spectrum_flux"][rows]
-            flux.extend(shard)
+            keep = np.ones(len(file["Z"]), dtype=bool)
+            if classes is not None:
+                keep &= np.isin(np.char.strip(file[CLASS_COLUMN][:].astype("U")), list(classes))
+            if max_zwarning is not None:
+                keep &= file[ZWARN_COLUMN][:] <= max_zwarning
+            rows = np.flatnonzero(keep)[: min(n - taken, 200)]
+            if not len(rows):
+                continue
+            flux.extend(file["spectrum_flux"][rows])
             wavelength.extend(file["spectrum_lambda"][rows])
             if redshift:
                 z.append(file["Z"][rows])
-            taken += len(shard)
+            taken += len(rows)
 
     return flux, wavelength, np.concatenate(z).astype(np.float32) if redshift else None
 

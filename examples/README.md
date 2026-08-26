@@ -15,13 +15,25 @@ export ASTROSPEC_SDSS_ROOT=/path/to/sdss   # a directory of healpix=*/ shards
 ```
 
 The two copies are not identical. The Hub copy carries the spectra and `Z` but
-not the pipeline `CLASS`, so `sdss_classification.ipynb` needs a local tree.
+not the pipeline `CLASS`, so `galspecnet_source_classification_on_sdss.ipynb`
+needs a local tree.
 
 `utils/sdss.py` also resamples: SDSS spectra share a log-lambda pixel spacing but
 cover slightly different wavelength windows, so their pixel counts differ from
 object to object, and the fixed-grid models cannot see that variation. AstroSpec
 ships no resampling of its own. The grid, the interpolation, and the
 normalization are properties of a dataset, not of a model.
+
+Every loader normalizes through one shared routine, `utils/preprocess.py`, which
+reproduces OmniSpectrum's `SpectrumPreprocessor` as configured for SDSS:
+sigma-clip the outlier pixels so cosmic rays and sky residuals do not set the
+scale, divide each spectrum by its own mean flux so the continuum sits near
+zero once 1 is subtracted, then compress with `arcsinh`, which handles emission
+lines orders of magnitude above the continuum while staying defined for the
+negative values sky subtraction leaves. Its `norm_floor` guards the scale factor
+against faint and sky-dominated spectra and assumes survey flux units, so
+`utils/astrom3.py` overrides it for a release that ships flux pre-scaled to
+~1e-3.
 
 `astroclip_similarity_search.ipynb` reads [MultimodalUniverse](https://github.com/MultimodalUniverse/MultimodalUniverse)
 DESI EDR SV3 spectra instead, through `utils/desi.py`, the grid AstroCLIP's
@@ -34,12 +46,47 @@ export ASTROSPEC_DESI_ROOT=/path/to/desi/edr_sv3   # a directory of healpix=*/ s
 Every spectrum in this release already sits on the same 7,781-pixel grid, so
 `utils/desi.py` does no resampling.
 
-## `sdss_classification.ipynb`
+`spender_redshift_regression_on_sdss.ipynb` uses the same SDSS/DESI sources and
+their pipeline `Z` values as regression targets. Like the class-label example it
+needs a local tree, because it selects a single pipeline class and only the local
+shards carry the class column (`CLASS` in SDSS, `SPECTYPE` in DESI).
+
+`galspecnet_classification_on_astrom3.ipynb` streams
+[`AstroMLCore/AstroM3Processed`](https://huggingface.co/datasets/AstroMLCore/AstroM3Processed).
+It uses only the processed LAMOST spectrum, not the accompanying light curve or
+metadata, and honors AstroM3's published train/validation/test split. The
+processed release needs no `trust_remote_code`.
+
+## `galspecnet_source_classification_on_sdss.ipynb`
 
 Trains `GalSpecNet` to separate the SDSS pipeline classes GALAXY / QSO / STAR on
-6,000 spectra, split 70/10/20, and reports a per-class report and confusion
-matrix. The shortest end-to-end path through the library: load, resample,
-`create_model`, train, evaluate.
+6,000 spectra drawn in the survey's natural (imbalanced) class proportions,
+split 70/10/20, with training-split inverse-frequency class weights in the
+loss. Reports a per-class report and confusion matrix. The shortest end-to-end
+path through the library: load, resample, `create_model`, train, evaluate.
+
+## `spender_redshift_regression_on_sdss.ipynb`
+
+Trains `SpectrumEncoder`, spender's CNN + attention-pooling encoder, with
+`n_latent=1` to regress redshift from 50,000 SDSS spectra by default; set
+`survey = "desi"` for DESI EDR SV3 on its native 7,781-pixel grid. The sample is
+restricted to the `GALAXY` class, since redshift is read from different features
+in stars, galaxies and quasars, to redshifts the pipeline did not flag
+(`max_zwarning=0`), and to `0.01 < Z <= 0.5` (the upper bound is spender's own
+`z_max` for SDSS, 0.8 for DESI; the lower one keeps log-space targets from
+carrying runaway outliers). A deliberate 20-epoch draft run plots train and
+validation learning curves alongside held-out predictions and residuals. It is
+still not a redshift benchmark: the target distribution is the survey's own, and
+the per-object `Z_ERR` is unused.
+
+## `galspecnet_classification_on_astrom3.ipynb`
+
+Trains GalSpecNet on the ten AstroM3 variable-star classes from the LAMOST flux
+channel. It uses the publisher's full `full_42` train/validation/test split and
+training-split inverse-frequency weights to handle class imbalance, without
+requiring the local multi-TB survey tree. Its wider GalSpecNet baseline trains
+for 30 epochs with cosine learning-rate decay, then reports per-class results
+and a confusion matrix.
 
 ## `specformer_pretraining.ipynb`
 

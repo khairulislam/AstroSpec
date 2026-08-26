@@ -17,16 +17,16 @@ from glob import glob
 
 import numpy as np
 
+from .preprocess import standardize
+
 HF_DATASET = "MultimodalUniverse/desi"
 HF_CONFIG = "edr_sv3"
 
+#: dataset column holding the pipeline classification (``CLASS`` in SDSS)
+CLASS_COLUMN = "SPECTYPE"
 
-def standardize(flux: np.ndarray) -> np.ndarray:
-    """Replace non-finite pixels with zero and standardize each spectrum."""
-    flux = np.nan_to_num(flux, nan=0.0, posinf=0.0, neginf=0.0)
-    mean = flux.mean(axis=-1, keepdims=True)
-    std = flux.std(axis=-1, keepdims=True)
-    return (flux - mean) / np.maximum(std, 1e-6)
+#: dataset column holding the redshift warning bitmask (``ZWARNING`` in SDSS)
+ZWARN_COLUMN = "ZWARN"
 
 
 def local_files(root: str = None) -> list:
@@ -35,20 +35,50 @@ def local_files(root: str = None) -> list:
     return sorted(glob(os.path.join(root, "healpix=*", "*.hdf5"))) if root else []
 
 
-def load_spectra(n: int, root: str = None, redshift: bool = False) -> tuple:
+def load_spectra(
+    n: int,
+    root: str = None,
+    redshift: bool = False,
+    classes: tuple = None,
+    max_zwarning: int = None,
+) -> tuple:
     """Load ``n`` spectra, from the local tree if there is one, else the Hub.
 
     Returns ``(flux, z)``, ``flux`` already on the common 7,781-pixel grid,
     with ``z`` ``None`` unless ``redshift``. Read in file order rather than
     sampled, at most 200 per local shard so the subset spreads over the sky
     instead of sitting inside one healpix pixel.
+
+    ``classes`` restricts the sample to pipeline :data:`CLASS_COLUMN` values,
+    e.g. ``("GALAXY",)``. Redshift means something different for each class, so
+    a regression on ``Z`` should pick one.
+
+    ``max_zwarning`` keeps only rows whose :data:`ZWARN_COLUMN` bitmask is at
+    most this; pass ``0`` to drop every redshift the pipeline flagged.
+
+    Both filters need the local tree.
     """
     files = local_files(root)
-    flux, z = _read_local(files, n, redshift) if files else _read_hf(n, redshift)
+    if (classes is not None or max_zwarning is not None) and not files:
+        raise FileNotFoundError(
+            f"filtering on {CLASS_COLUMN}/{ZWARN_COLUMN} needs a local DESI tree; set "
+            "ASTROSPEC_DESI_ROOT to a directory of healpix=*/ shards"
+        )
+    flux, z = (
+        _read_local(files, n, redshift, classes, max_zwarning)
+        if files
+        else _read_hf(n, redshift)
+    )
     return np.stack(flux).astype(np.float32), z
 
 
-def _read_local(files: list, n: int, redshift: bool) -> tuple:
+def _read_local(
+    files: list,
+    n: int,
+    redshift: bool,
+    classes: tuple = None,
+    max_zwarning: int = None,
+) -> tuple:
     import h5py
 
     flux, z = [], []
@@ -57,12 +87,18 @@ def _read_local(files: list, n: int, redshift: bool) -> tuple:
         if taken >= n:
             break
         with h5py.File(path, "r") as file:
-            rows = slice(0, min(n - taken, 200))
-            shard = file["spectrum_flux"][rows]
-            flux.extend(shard)
+            keep = np.ones(len(file["Z"]), dtype=bool)
+            if classes is not None:
+                keep &= np.isin(np.char.strip(file[CLASS_COLUMN][:].astype("U")), list(classes))
+            if max_zwarning is not None:
+                keep &= file[ZWARN_COLUMN][:] <= max_zwarning
+            rows = np.flatnonzero(keep)[: min(n - taken, 200)]
+            if not len(rows):
+                continue
+            flux.extend(file["spectrum_flux"][rows])
             if redshift:
                 z.append(file["Z"][rows])
-            taken += len(shard)
+            taken += len(rows)
 
     return flux, np.concatenate(z).astype(np.float32) if redshift else None
 

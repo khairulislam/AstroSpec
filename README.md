@@ -85,7 +85,9 @@ tree or, failing that, streams them from the Hub.
 
 | Notebook | What it does |
 |---|---|
-| [`sdss_classification.ipynb`](examples/sdss_classification.ipynb) | Trains GalSpecNet to separate GALAXY / QSO / STAR |
+| [`galspecnet_source_classification_on_sdss.ipynb`](examples/galspecnet_source_classification_on_sdss.ipynb) | Trains GalSpecNet to separate GALAXY / QSO / STAR |
+| [`spender_redshift_regression_on_sdss.ipynb`](examples/spender_redshift_regression_on_sdss.ipynb) | Trains spender's SpectrumEncoder to regress SDSS or DESI pipeline redshift |
+| [`galspecnet_classification_on_astrom3.ipynb`](examples/galspecnet_classification_on_astrom3.ipynb) | Trains GalSpecNet to classify LAMOST variable-star spectra |
 | [`specformer_pretraining.ipynb`](examples/specformer_pretraining.ipynb) | Pretrains SpecFormer on masked patches, then retrieves nearest neighbours in its embedding space |
 | [`specformer_pretrained_similarity_search.ipynb`](examples/specformer_pretrained_similarity_search.ipynb) | Loads SpecFormer's released weights (from AstroCLIP's checkpoint) and retrieves nearest neighbours, no training |
 | [`astroclip_similarity_search.ipynb`](examples/astroclip_similarity_search.ipynb) | Loads the full released AstroCLIP model and retrieves nearest neighbours by its aligned spectrum embedding |
