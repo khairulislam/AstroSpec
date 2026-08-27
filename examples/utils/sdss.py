@@ -57,9 +57,21 @@ def resample(flux, wavelength, grid: np.ndarray = COMMON_GRID) -> np.ndarray:
 
 
 def local_files(root: str = None) -> list:
-    """HDF5 shards of a local MMU-format sub-survey, or ``[]`` if there is no tree."""
+    """HDF5 shards of a local MMU-format sub-survey, or ``[]`` if unset.
+
+    A *set* root that matches no shards is almost always a typo, not an
+    intentional request to stream, so that case raises rather than falling
+    through to the Hub silently.
+    """
     root = root or os.environ.get("ASTROSPEC_SDSS_ROOT", "")
-    return sorted(glob(os.path.join(root, "healpix=*", "*.hdf5"))) if root else []
+    if not root:
+        return []
+    files = sorted(glob(os.path.join(root, "healpix=*", "*.hdf5")))
+    if not files:
+        raise FileNotFoundError(
+            f"ASTROSPEC_SDSS_ROOT={root!r} has no healpix=*/*.hdf5 shards; check the path"
+        )
+    return files
 
 
 def load_classes(n_per_class: int, root: str = None, seed: int = 0) -> tuple:
@@ -224,7 +236,7 @@ def _read_local(
 
 def _read_hf(n: int, redshift: bool) -> tuple:
     from datasets import load_dataset
-    from tqdm.auto import tqdm
+    from tqdm import tqdm
 
     columns = ["spectrum"] + (["Z"] if redshift else [])
     stream = load_dataset(HF_DATASET, split="train", streaming=True).select_columns(columns)

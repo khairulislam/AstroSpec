@@ -9,7 +9,7 @@ instead.
 
 import numpy as np
 import torch
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 
 @torch.no_grad()

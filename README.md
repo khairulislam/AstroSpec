@@ -113,6 +113,8 @@ tree or, failing that, streams them from the Hub.
 | [`specformer_pretrained_similarity_search.ipynb`](examples/specformer_pretrained_similarity_search.ipynb) | Loads SpecFormer's released weights (from AstroCLIP's checkpoint) and retrieves nearest neighbours, no training |
 | [`astroclip_similarity_search.ipynb`](examples/astroclip_similarity_search.ipynb) | Loads the full released AstroCLIP model and retrieves nearest neighbours by its aligned spectrum embedding |
 | [`aion_spectrum_embeddings.ipynb`](examples/aion_spectrum_embeddings.ipynb) | Loads the released AION-1 model and retrieves nearest neighbours by its omnimodal spectrum embedding |
+| [`astropt_pretraining.ipynb`](examples/astropt_pretraining.ipynb) | Pretrains AstroPT on DESI with its own causal next-patch objective, then retrieves nearest neighbours in its embedding space |
+| [`astropt_classification_on_sdss.ipynb`](examples/astropt_classification_on_sdss.ipynb) | Trains AstroPT and a `CrossAttentionHead` fully supervised to separate GALAXY / QSO / STAR, with no pretrained checkpoint to start from |
 
 ## Resources
 

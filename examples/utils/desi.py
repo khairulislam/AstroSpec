@@ -20,7 +20,7 @@ import numpy as np
 from .preprocess import standardize
 
 HF_DATASET = "MultimodalUniverse/desi"
-HF_CONFIG = "edr_sv3"
+HF_CONFIG = "default"
 
 #: dataset column holding the pipeline classification (``CLASS`` in SDSS)
 CLASS_COLUMN = "SPECTYPE"
@@ -30,9 +30,21 @@ ZWARN_COLUMN = "ZWARN"
 
 
 def local_files(root: str = None) -> list:
-    """HDF5 shards of a local MMU-format DESI tree, or ``[]`` if there is none."""
+    """HDF5 shards of a local MMU-format DESI tree, or ``[]`` if unset.
+
+    A *set* root that matches no shards is almost always a typo, not an
+    intentional request to stream, so that case raises rather than falling
+    through to the Hub silently.
+    """
     root = root or os.environ.get("ASTROSPEC_DESI_ROOT", "")
-    return sorted(glob(os.path.join(root, "healpix=*", "*.hdf5"))) if root else []
+    if not root:
+        return []
+    files = sorted(glob(os.path.join(root, "healpix=*", "*.hdf5")))
+    if not files:
+        raise FileNotFoundError(
+            f"ASTROSPEC_DESI_ROOT={root!r} has no healpix=*/*.hdf5 shards; check the path"
+        )
+    return files
 
 
 def load_spectra(
@@ -106,21 +118,21 @@ def _read_local(
 def load_native(n: int, root: str = None, redshift: bool = False) -> tuple:
     """Load ``n`` spectra with their per-pixel inverse variance and bad-pixel mask.
 
-    Returns ``(flux, ivar, mask, wavelength, z)``, all local-tree only: AION's
-    spectrum codec (see ``utils/aion.py``) wants ``ivar`` and ``mask``
-    directly, which the Hub release does not carry. ``wavelength`` is the
-    file's own ``spectrum_lambda``, identical for every DESI EDR row, but read
-    per row rather than assumed so a differently-processed tree is still
-    handled correctly.
+    Returns ``(flux, ivar, mask, wavelength, z)``, from the local tree if there
+    is one, else the Hub: its ``spectrum`` column carries ``ivar``, ``mask``,
+    and ``lambda`` alongside ``flux``, so AION's spectrum codec (see
+    ``utils/aion.py``), which wants all four, works either way.
     """
-    import h5py
-
     files = local_files(root)
-    if not files:
-        raise FileNotFoundError(
-            "no local DESI HDF5 found; set ASTROSPEC_DESI_ROOT to a directory of "
-            "healpix=*/ shards (ivar/mask are not in the Hub release)"
-        )
+    return (
+        _read_local_native(files, n, redshift)
+        if files
+        else _read_hf_native(n, redshift)
+    )
+
+
+def _read_local_native(files: list, n: int, redshift: bool) -> tuple:
+    import h5py
 
     flux, ivar, mask, wavelength, z = [], [], [], [], []
     taken = 0
@@ -148,17 +160,30 @@ def load_native(n: int, root: str = None, redshift: bool = False) -> tuple:
     )
 
 
-def _read_hf(n: int, redshift: bool) -> tuple:
+def _stream(n: int, redshift: bool) -> list:
     from datasets import load_dataset
-    from tqdm.auto import tqdm
+    from tqdm import tqdm
 
     columns = ["spectrum"] + (["Z"] if redshift else [])
     stream = (
         load_dataset(HF_DATASET, HF_CONFIG, split="train", streaming=True)
         .select_columns(columns)
     )
-    rows = list(tqdm(stream.take(n), total=n, desc="streaming desi", unit="spec"))
+    return list(tqdm(stream.take(n), total=n, desc="streaming desi", unit="spec"))
 
+
+def _read_hf(n: int, redshift: bool) -> tuple:
+    rows = _stream(n, redshift)
     flux = [np.asarray(row["spectrum"]["flux"], dtype=np.float32) for row in rows]
     z = np.asarray([row["Z"] for row in rows], dtype=np.float32) if redshift else None
     return flux, z
+
+
+def _read_hf_native(n: int, redshift: bool) -> tuple:
+    rows = _stream(n, redshift)
+    flux = np.stack([np.asarray(r["spectrum"]["flux"], dtype=np.float32) for r in rows])
+    ivar = np.stack([np.asarray(r["spectrum"]["ivar"], dtype=np.float32) for r in rows])
+    mask = np.stack([np.asarray(r["spectrum"]["mask"], dtype=bool) for r in rows])
+    wavelength = np.stack([np.asarray(r["spectrum"]["lambda"], dtype=np.float32) for r in rows])
+    z = np.asarray([r["Z"] for r in rows], dtype=np.float32) if redshift else None
+    return flux, ivar, mask, wavelength, z

@@ -5,14 +5,26 @@ its first cell; none of this is required to use `astrospec` itself.
 
 ## Data
 
-Four notebooks read SDSS spectra through `utils/sdss.py`, from a local HDF5
-tree when `ASTROSPEC_SDSS_ROOT` points at one and streaming
-[`MultimodalUniverse/sdss`](https://huggingface.co/datasets/MultimodalUniverse/sdss)
-otherwise:
+Every notebook imports `utils`, which loads a local `.env` in this directory on
+import (`utils/__init__.py`), so `ASTROSPEC_SDSS_ROOT` and `ASTROSPEC_DESI_ROOT`
+only need setting once, in one file, rather than exporting them in every shell
+that launches a kernel:
 
 ```bash
-export ASTROSPEC_SDSS_ROOT=/path/to/sdss   # a directory of healpix=*/ shards
+# examples/.env, gitignored
+ASTROSPEC_SDSS_ROOT=/path/to/sdss   # a directory of healpix=*/ shards
+ASTROSPEC_DESI_ROOT=/path/to/desi/edr_sv3
 ```
+
+An exported shell variable still works too; `.env` only fills in what the
+environment does not already have. A path that is set but wrong -- a typo, a
+moved directory -- raises `FileNotFoundError` rather than silently falling
+back to streaming, since that is almost never what a set path means.
+
+Four notebooks read SDSS spectra through `utils/sdss.py`, from the local tree
+when `ASTROSPEC_SDSS_ROOT` points at one and streaming
+[`MultimodalUniverse/sdss`](https://huggingface.co/datasets/MultimodalUniverse/sdss)
+otherwise.
 
 The two copies are not identical. The Hub copy carries the spectra and `Z` but
 not the pipeline `CLASS`, so `galspecnet_source_classification_on_sdss.ipynb`
@@ -35,19 +47,17 @@ against faint and sky-dominated spectra and assumes survey flux units, so
 `utils/astrom3.py` overrides it for a release that ships flux pre-scaled to
 ~1e-3.
 
-`astroclip_similarity_search.ipynb` reads [MultimodalUniverse](https://github.com/MultimodalUniverse/MultimodalUniverse)
-DESI EDR SV3 spectra instead, through `utils/desi.py`, the grid AstroCLIP's
-spectrum encoder was actually trained on:
-
-```bash
-export ASTROSPEC_DESI_ROOT=/path/to/desi/edr_sv3   # a directory of healpix=*/ shards
-```
-
-Every spectrum in this release already sits on the same 7,781-pixel grid, so
-`utils/desi.py` does no resampling. `aion_spectrum_embeddings.ipynb` uses the
-same DESI tree but through `desi.load_native`, which also reads per-pixel
-inverse variance and the bad-pixel mask, since AION's own spectrum codec wants
-those directly rather than a resampled grid.
+`astroclip_similarity_search.ipynb` and `astropt_pretraining.ipynb` read
+[MultimodalUniverse](https://github.com/MultimodalUniverse/MultimodalUniverse)
+DESI EDR SV3 spectra instead, through `utils/desi.py`'s `load_spectra`, the
+grid AstroCLIP's spectrum encoder was actually trained on. Every spectrum in
+this release already sits on the same 7,781-pixel grid, so `utils/desi.py`
+does no resampling. `aion_spectrum_embeddings.ipynb` instead uses
+`desi.load_native`, which also reads per-pixel inverse variance, the
+bad-pixel mask, and per-row wavelength, since AION's own spectrum codec wants
+those directly; the Hub release's `spectrum` column carries `ivar`, `mask`,
+and `lambda` alongside `flux`, so this loader streams from the Hub exactly
+like `load_spectra` when there is no local tree.
 
 `spender_redshift_regression_on_sdss.ipynb` uses the same SDSS/DESI sources and
 their pipeline `Z` values as regression targets. Like the class-label example it
@@ -145,3 +155,27 @@ retrieval as the SpecFormer and AstroCLIP notebooks, on 2,000 spectra. Unlike
 `astroclip_similarity_search.ipynb`, the `aion` extra
 (`pip install astrospec[aion]`) is a normal package install, no `--no-deps`
 git installs needed.
+
+## `astropt_pretraining.ipynb`
+
+Pretrains `AstroPT` on 16,000 unlabelled DESI spectra with its own
+self-supervised objective: causal next-patch prediction, a Huber loss between
+each patch's prediction and the next patch, over positions where both are
+valid. There is no public spectra-pretrained AstroPT checkpoint to load
+instead (`Smith42/astroPT`'s release is image-only), so this notebook is the
+model's pretraining step, not a loader. `forward_features` gives one causal
+hidden state per patch; since each has only seen its own position and earlier
+ones, the last valid patch's state, not the mean, is the read-out used for
+nearest-neighbour retrieval against held-out redshift, as in
+`specformer_pretraining.ipynb`.
+
+## `astropt_classification_on_sdss.ipynb`
+
+Trains `AstroPT` and a `CrossAttentionHead` fully supervised, end to end from
+a random init, to separate the same SDSS GALAXY / QSO / STAR classes as
+`galspecnet_source_classification_on_sdss.ipynb`, on the same 6,000-spectrum
+sample and split. It exists because there is no pretrained AstroPT checkpoint
+to attach a head to; training the full encoder from scratch on 4,200 labelled
+spectra is a less data-efficient use of it than pretraining plus fine-tuning
+would be, but it gives a direct comparison between a fixed-grid CNN and a
+wavelength-positioned transformer on identical data.
