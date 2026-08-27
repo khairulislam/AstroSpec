@@ -8,6 +8,7 @@ authors:
     affiliation: University of Virginia
 repository-code: "https://github.com/khairulislam/AstroSpec"
 url: "https://github.com/khairulislam/AstroSpec"
+doi: 10.5281/zenodo.22119178
 abstract: >-
   AstroSpec collects spectroscopic architectures and foundation
   models for astronomy under one registry and a common PyTorch

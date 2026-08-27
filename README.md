@@ -14,6 +14,19 @@ electromagnetic spectrum. The processes that produce the various forms of EM
 radiation are described under each image. Courtesy: NASA/University of
 Chicago.*
 
+If you use this work, please cite:
+
+```biblatex
+@software{islam2026astrospec,
+  title     = {AstroSpec: A unified library of spectral models for astronomy},
+  author    = {Islam, Md. Khairul},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.22119178},
+  url       = {https://doi.org/10.5281/zenodo.22119178}
+}
+```
+
 ## Table of contents
 
 - [Usage](#usage)
